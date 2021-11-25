@@ -9,6 +9,7 @@ import {
   Alert,
 } from "react-native";
 import bg from "./assets/bg.jpeg";
+import Cross from "./src/components/Cross";
 
 const emptyMap = [
   ["", "", ""],
@@ -163,21 +164,13 @@ export default function App() {
                   style={styles.cell}
                 >
                   {cell === "o" && <View style={styles.circle} />}
-                  {cell === "x" && (
-                    <View style={styles.cross}>
-                      <View style={styles.crossLine} />
-                      <View
-                        style={[styles.crossLine, styles.crossLineReversed]}
-                      />
-                    </View>
-                  )}
+                  {cell === "x" && <Cross />}
                 </Pressable>
               ))}
             </View>
           ))}
 
           {/* <View style={styles.circle} />
-
           <View style={styles.cross}>
             <View style={styles.crossLine} />
             <View style={[styles.crossLine, styles.crossLineReversed]} />
@@ -229,28 +222,5 @@ const styles = StyleSheet.create({
 
     borderWidth: 10,
     borderColor: "white",
-  },
-  cross: {
-    flex: 1,
-  },
-  crossLine: {
-    position: "absolute",
-    left: "48%",
-    width: 10,
-    height: "100%",
-    backgroundColor: "white",
-    borderRadius: 5,
-    transform: [
-      {
-        rotate: "45deg",
-      },
-    ],
-  },
-  crossLineReversed: {
-    transform: [
-      {
-        rotate: "-45deg",
-      },
-    ],
   },
 });
