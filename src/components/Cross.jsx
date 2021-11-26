@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
 
 const Cross = () => {
   return (
@@ -10,7 +10,7 @@ const Cross = () => {
   );
 };
 
-const style = StyleSheet.create({
+const styles = StyleSheet.create({
   cross: {
     flex: 1,
   },
@@ -35,4 +35,5 @@ const style = StyleSheet.create({
     ],
   },
 });
+
 export default Cross;

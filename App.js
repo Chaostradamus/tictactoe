@@ -12,26 +12,47 @@ import bg from "./assets/bg.jpeg";
 import Cell from "./src/components/Cell";
 
 const emptyMap = [
-  ["", "", ""],
-  ["", "", ""],
-  ["", "", ""],
+  ["", "", ""], // 1st row
+  ["", "", ""], // 2nd row
+  ["", "", ""], // 3rd row
 ];
 
+const copyArray = (original) => {
+  console.log("ghe");
+  console.log(original);
+  const copy = original.map((arr) => {
+    return arr.slice();
+  });
+  console.log(copy);
+  return copy;
+};
+
 export default function App() {
-  const [map, setMap] = useState();
+  const [map, setMap] = useState(emptyMap);
   const [currentTurn, setCurrentTurn] = useState("x");
+  const [gameMode, setGameMode] = useState("BOT_MEDIUM"); // LOCAL, BOT_EASY, BOT_MEDIUM;
 
   useEffect(() => {
-    if (currentTurn === "o") {
+    if (currentTurn === "o" && gameMode !== "LOCAL") {
       botTurn();
     }
-  }, [currentTurn]);
+  }, [currentTurn, gameMode]);
+
+  useEffect(() => {
+    const winner = getWinner(map);
+    if (winner) {
+      gameWon(winner);
+    } else {
+      checkTieState();
+    }
+  }, [map]);
 
   const onPress = (rowIndex, columnIndex) => {
     if (map[rowIndex][columnIndex] !== "") {
       Alert.alert("Position already occupied");
       return;
     }
+
     setMap((existingMap) => {
       const updatedMap = [...existingMap];
       updatedMap[rowIndex][columnIndex] = currentTurn;
@@ -39,21 +60,13 @@ export default function App() {
     });
 
     setCurrentTurn(currentTurn === "x" ? "o" : "x");
-
-    const winner = getWinner();
-    if (winner) {
-      gameWon(winner);
-    } else {
-      checkTieState();
-    }
   };
 
-  const getWinner = () => {
-    // check rows
-
+  const getWinner = (winnerMap) => {
+    // Check rows
     for (let i = 0; i < 3; i++) {
-      const isRowXWinning = map[i].every((cell) => cell === "x");
-      const isRowOWinning = map[i].every((cell) => cell === "o");
+      const isRowXWinning = winnerMap[i].every((cell) => cell === "x");
+      const isRowOWinning = winnerMap[i].every((cell) => cell === "o");
 
       if (isRowXWinning) {
         return "x";
@@ -63,46 +76,45 @@ export default function App() {
       }
     }
 
-    // check columns
-
+    // Check columns
     for (let col = 0; col < 3; col++) {
       let isColumnXWinner = true;
       let isColumnOWinner = true;
 
       for (let row = 0; row < 3; row++) {
-        if (map[row][col] !== "x") {
+        if (winnerMap[row][col] !== "x") {
           isColumnXWinner = false;
         }
-        if (map[row][col] !== "o") {
+        if (winnerMap[row][col] !== "o") {
           isColumnOWinner = false;
         }
       }
 
       if (isColumnXWinner) {
         return "x";
-        break;
       }
       if (isColumnOWinner) {
         return "o";
-        break;
       }
     }
 
+    // check diagonals
     let isDiagonal1OWinning = true;
     let isDiagonal1XWinning = true;
     let isDiagonal2OWinning = true;
     let isDiagonal2XWinning = true;
     for (let i = 0; i < 3; i++) {
-      if (map[i][i] !== "o") {
+      if (winnerMap[i][i] !== "o") {
         isDiagonal1OWinning = false;
       }
-      if (map[i][i] !== "x") {
+      if (winnerMap[i][i] !== "x") {
         isDiagonal1XWinning = false;
       }
-      if (map[i][2 - i] !== "o") {
+
+      if (winnerMap[i][2 - i] !== "o") {
         isDiagonal2OWinning = false;
       }
-      if (map[i][2 - i] !== "x") {
+      if (winnerMap[i][2 - i] !== "x") {
         isDiagonal2XWinning = false;
       }
     }
@@ -127,7 +139,7 @@ export default function App() {
   };
 
   const gameWon = (player) => {
-    Alert.alert(`Hurrrayy`, `Player ${player} won`, [
+    Alert.alert(`Huraaay`, `Player ${player} won`, [
       {
         text: "Restart",
         onPress: resetGame,
@@ -137,16 +149,15 @@ export default function App() {
 
   const resetGame = () => {
     setMap([
-      ["", "", ""],
-      ["", "", ""],
-      ["", "", ""],
+      ["", "", ""], // 1st row
+      ["", "", ""], // 2nd row
+      ["", "", ""], // 3rd row
     ]);
-
     setCurrentTurn("x");
   };
 
   const botTurn = () => {
-    //collect all possible options
+    // collect all possible options
     const possiblePositions = [];
     map.forEach((row, rowIndex) => {
       row.forEach((cell, columnIndex) => {
@@ -155,10 +166,49 @@ export default function App() {
         }
       });
     });
-    //choose optimal option
-    const chosenOption =
-      possiblePositions[Math.floor(Math.random() * possiblePositions.length)];
-    onPress(0, 0);
+
+    let chosenOption;
+
+    if (gameMode === "BOT_MEDIUM") {
+      // Attack
+      possiblePositions.forEach((possiblePosition) => {
+        const mapCopy = copyArray(map);
+
+        mapCopy[possiblePosition.row][possiblePosition.col] = "o";
+
+        const winner = getWinner(mapCopy);
+        if (winner === "o") {
+          // Attack that position
+          chosenOption = possiblePosition;
+        }
+      });
+
+      if (!chosenOption) {
+        // Defend
+        // Check if the opponent WINS if it takes one of the possible Positions
+        possiblePositions.forEach((possiblePosition) => {
+          const mapCopy = copyArray(map);
+
+          mapCopy[possiblePosition.row][possiblePosition.col] = "x";
+
+          const winner = getWinner(mapCopy);
+          if (winner === "x") {
+            // Defend that position
+            chosenOption = possiblePosition;
+          }
+        });
+      }
+    }
+
+    // choose random
+    if (!chosenOption) {
+      chosenOption =
+        possiblePositions[Math.floor(Math.random() * possiblePositions.length)];
+    }
+
+    if (chosenOption) {
+      onPress(chosenOption.row, chosenOption.col);
+    }
   };
 
   return (
@@ -168,12 +218,11 @@ export default function App() {
           style={{
             fontSize: 24,
             color: "white",
-            marginBottom: "auto",
-            marginTop: 50,
+            position: "absolute",
+            top: 50,
           }}
         >
-          {" "}
-          Current Turn : {currentTurn.toUpperCase()}{" "}
+          Current Turn: {currentTurn.toUpperCase()}
         </Text>
         <View style={styles.map}>
           {map.map((row, rowIndex) => (
@@ -188,19 +237,47 @@ export default function App() {
             </View>
           ))}
         </View>
+
+        <View style={styles.buttons}>
+          <Text
+            onPress={() => setGameMode("LOCAL")}
+            style={[
+              styles.button,
+              { backgroundColor: gameMode === "LOCAL" ? "#4F5686" : "#191F24" },
+            ]}
+          >
+            Local
+          </Text>
+          <Text
+            onPress={() => setGameMode("BOT_EASY")}
+            style={[
+              styles.button,
+              {
+                backgroundColor:
+                  gameMode === "BOT_EASY" ? "#4F5686" : "#191F24",
+              },
+            ]}
+          >
+            Easy Bot
+          </Text>
+          <Text
+            onPress={() => setGameMode("BOT_MEDIUM")}
+            style={[
+              styles.button,
+              {
+                backgroundColor:
+                  gameMode === "BOT_MEDIUM" ? "#4F5686" : "#191F24",
+              },
+            ]}
+          >
+            Medium Bot
+          </Text>
+        </View>
       </ImageBackground>
 
       <StatusBar style="auto" />
     </View>
   );
-}
-
-{
-  /* <View style={styles.circle} />
-<View style={styles.cross}>
-  <View style={styles.crossLine} />
-  <View style={[styles.crossLine, styles.crossLineReversed]} />
-</View> */
 }
 
 const styles = StyleSheet.create({
@@ -209,7 +286,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#242d34",
+    backgroundColor: "#242D34",
   },
   bg: {
     width: "100%",
@@ -226,5 +303,18 @@ const styles = StyleSheet.create({
   row: {
     flex: 1,
     flexDirection: "row",
+  },
+  buttons: {
+    position: "absolute",
+    bottom: 50,
+    flexDirection: "row",
+  },
+  button: {
+    color: "white",
+    margin: 10,
+    fontSize: 16,
+    backgroundColor: "#191F24",
+    padding: 10,
+    paddingHorizontal: 15,
   },
 });
