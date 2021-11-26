@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -9,7 +9,7 @@ import {
   Alert,
 } from "react-native";
 import bg from "./assets/bg.jpeg";
-import Cross from "./src/components/Cross";
+import Cell from "./src/components/Cell";
 
 const emptyMap = [
   ["", "", ""],
@@ -19,8 +19,13 @@ const emptyMap = [
 
 export default function App() {
   const [map, setMap] = useState();
-
   const [currentTurn, setCurrentTurn] = useState("x");
+
+  useEffect(() => {
+    if (currentTurn === "o") {
+      botTurn();
+    }
+  }, [currentTurn]);
 
   const onPress = (rowIndex, columnIndex) => {
     if (map[rowIndex][columnIndex] !== "") {
@@ -140,6 +145,22 @@ export default function App() {
     setCurrentTurn("x");
   };
 
+  const botTurn = () => {
+    //collect all possible options
+    const possiblePositions = [];
+    map.forEach((row, rowIndex) => {
+      row.forEach((cell, columnIndex) => {
+        if (cell === "") {
+          possiblePositions.push({ row: rowIndex, col: columnIndex });
+        }
+      });
+    });
+    //choose optimal option
+    const chosenOption =
+      possiblePositions[Math.floor(Math.random() * possiblePositions.length)];
+    onPress(0, 0);
+  };
+
   return (
     <View style={styles.container}>
       <ImageBackground source={bg} style={styles.bg} resizeMode="contain">
@@ -158,29 +179,28 @@ export default function App() {
           {map.map((row, rowIndex) => (
             <View key={`row-${rowIndex}`} style={styles.row}>
               {row.map((cell, columnIndex) => (
-                <Pressable
+                <Cell
                   key={`row-${rowIndex}-col-${columnIndex}`}
+                  cell={cell}
                   onPress={() => onPress(rowIndex, columnIndex)}
-                  style={styles.cell}
-                >
-                  {cell === "o" && <View style={styles.circle} />}
-                  {cell === "x" && <Cross />}
-                </Pressable>
+                />
               ))}
             </View>
           ))}
-
-          {/* <View style={styles.circle} />
-          <View style={styles.cross}>
-            <View style={styles.crossLine} />
-            <View style={[styles.crossLine, styles.crossLineReversed]} />
-          </View> */}
         </View>
       </ImageBackground>
 
       <StatusBar style="auto" />
     </View>
   );
+}
+
+{
+  /* <View style={styles.circle} />
+<View style={styles.cross}>
+  <View style={styles.crossLine} />
+  <View style={[styles.crossLine, styles.crossLineReversed]} />
+</View> */
 }
 
 const styles = StyleSheet.create({
@@ -206,21 +226,5 @@ const styles = StyleSheet.create({
   row: {
     flex: 1,
     flexDirection: "row",
-  },
-  cell: {
-    width: 100,
-    height: 100,
-    flex: 1,
-  },
-
-  circle: {
-    flex: 1,
-    borderRadius: 50,
-    alignItems: "center",
-    justifyContent: "center",
-    margin: 10,
-
-    borderWidth: 10,
-    borderColor: "white",
   },
 });
