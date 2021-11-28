@@ -11,6 +11,13 @@ import {
 import bg from "./assets/bg.jpeg";
 import Cell from "./src/components/Cell";
 
+import Amplify from "@aws-amplify/core";
+import { Auth } from "aws-amplify";
+import { withAuthenticator } from "aws-amplify-react-native";
+import config from "./src/aws-exports";
+
+Amplify.configure(config);
+
 const emptyMap = [
   ["", "", ""], // 1st row
   ["", "", ""], // 2nd row
@@ -27,7 +34,7 @@ const copyArray = (original) => {
   return copy;
 };
 
-export default function App() {
+function App() {
   const [map, setMap] = useState(emptyMap);
   const [currentTurn, setCurrentTurn] = useState("x");
   const [gameMode, setGameMode] = useState("BOT_MEDIUM"); // LOCAL, BOT_EASY, BOT_MEDIUM;
@@ -60,6 +67,10 @@ export default function App() {
     });
 
     setCurrentTurn(currentTurn === "x" ? "o" : "x");
+  };
+
+  const onLogout = () => {
+    Auth.signOut();
   };
 
   const getWinner = (winnerMap) => {
@@ -239,38 +250,45 @@ export default function App() {
         </View>
 
         <View style={styles.buttons}>
-          <Text
-            onPress={() => setGameMode("LOCAL")}
-            style={[
-              styles.button,
-              { backgroundColor: gameMode === "LOCAL" ? "#4F5686" : "#191F24" },
-            ]}
-          >
-            Local
-          </Text>
-          <Text
-            onPress={() => setGameMode("BOT_EASY")}
-            style={[
-              styles.button,
-              {
-                backgroundColor:
-                  gameMode === "BOT_EASY" ? "#4F5686" : "#191F24",
-              },
-            ]}
-          >
-            Easy Bot
-          </Text>
-          <Text
-            onPress={() => setGameMode("BOT_MEDIUM")}
-            style={[
-              styles.button,
-              {
-                backgroundColor:
-                  gameMode === "BOT_MEDIUM" ? "#4F5686" : "#191F24",
-              },
-            ]}
-          >
-            Medium Bot
+          <View style={{ flexDirection: "row" }}>
+            <Text
+              onPress={() => setGameMode("LOCAL")}
+              style={[
+                styles.button,
+                {
+                  backgroundColor: gameMode === "LOCAL" ? "#4F5686" : "#191F24",
+                },
+              ]}
+            >
+              Local
+            </Text>
+            <Text
+              onPress={() => setGameMode("BOT_EASY")}
+              style={[
+                styles.button,
+                {
+                  backgroundColor:
+                    gameMode === "BOT_EASY" ? "#4F5686" : "#191F24",
+                },
+              ]}
+            >
+              Easy Bot
+            </Text>
+            <Text
+              onPress={() => setGameMode("BOT_MEDIUM")}
+              style={[
+                styles.button,
+                {
+                  backgroundColor:
+                    gameMode === "BOT_MEDIUM" ? "#4F5686" : "#191F24",
+                },
+              ]}
+            >
+              Medium Bot
+            </Text>
+          </View>
+          <Text onPress={() => onLogout()} style={styles.logout}>
+            Logout
           </Text>
         </View>
       </ImageBackground>
@@ -307,7 +325,11 @@ const styles = StyleSheet.create({
   buttons: {
     position: "absolute",
     bottom: 50,
-    flexDirection: "row",
+  },
+  logout: {
+    alignSelf: "center",
+    color: "white",
+    fontSize: 16,
   },
   button: {
     color: "white",
@@ -318,3 +340,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
   },
 });
+
+export default withAuthenticator(App);
