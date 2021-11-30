@@ -8,17 +8,28 @@ import { getWinner, isTie } from "./src/utils/gameLogic";
 import { botTurn } from "./src/utils/bot";
 
 import Amplify from "@aws-amplify/core";
+import { DataStore } from "@aws-amplify/datastore";
 import { Auth } from "aws-amplify";
 import { withAuthenticator } from "aws-amplify-react-native";
 import config from "./src/aws-exports";
 import styles from "./App.style";
+
+import { Game } from "./src/models";
 
 Amplify.configure(config);
 
 function App() {
   const [map, setMap] = useState(emptyMap);
   const [currentTurn, setCurrentTurn] = useState("x");
+
   const [gameMode, setGameMode] = useState("BOT_MEDIUM"); // LOCAL, BOT_EASY, BOT_MEDIUM;
+  const [game, setGame] = useState(null);
+
+  useEffect(() => {
+    if (gameMode === "ONLINE") {
+      findOrCreateOnlineGame();
+    }
+  }, [gameMode]);
 
   useEffect(() => {
     if (currentTurn === "o" && gameMode !== "LOCAL") {
@@ -38,6 +49,35 @@ function App() {
     }
   }, [map]);
 
+  const findOrCreateOnlineGame = async () => {
+    const games = await getAvailableGames();
+    console.log(games);
+    // create new
+    await createNewGame();
+  };
+
+  const getAvailableGames = async () => {
+    const games = await DataStore.query(Game);
+    return games;
+  };
+
+  const createNewGame = async () => {
+    const userData = await Auth.currentAuthenticatedUser();
+
+    const emptyStringMap = JSON.stringify(emptyMap);
+
+    const newGame = new Game({
+      playerX: userData.attributes.sub,
+      map: emptyStringMap,
+      currentPlayer: "X",
+      pointsX: 0,
+      pointsO: 0,
+    });
+    console.log(newGame);
+    const createdGame = await DataStore.save(newGame);
+    setGame(createdGame);
+  };
+
   const onPress = (rowIndex, columnIndex) => {
     if (map[rowIndex][columnIndex] !== "") {
       Alert.alert("Position already occupied");
@@ -53,7 +93,8 @@ function App() {
     setCurrentTurn(currentTurn === "x" ? "o" : "x");
   };
 
-  const onLogout = () => {
+  const onLogout = async () => {
+    await DataStore.clear();
     Auth.signOut();
   };
 
@@ -99,6 +140,9 @@ function App() {
         >
           Current Turn: {currentTurn.toUpperCase()}
         </Text>
+
+        {game && <Text style={{ color: "white" }}>Game id: {game.id}</Text>}
+
         <View style={styles.map}>
           {map.map((row, rowIndex) => (
             <View key={`row-${rowIndex}`} style={styles.row}>
@@ -114,7 +158,13 @@ function App() {
         </View>
 
         <View style={styles.buttons}>
-          <View style={{ flexDirection: "row" }}>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              justifyContent: "center",
+            }}
+          >
             <Text
               onPress={() => setGameMode("LOCAL")}
               style={[
@@ -150,7 +200,21 @@ function App() {
             >
               Medium Bot
             </Text>
+
+            <Text
+              onPress={() => setGameMode("ONLINE")}
+              style={[
+                styles.button,
+                {
+                  backgroundColor:
+                    gameMode === "ONLINE" ? "#4F5686" : "#191F24",
+                },
+              ]}
+            >
+              ONLINE
+            </Text>
           </View>
+
           <Text onPress={() => onLogout()} style={styles.logout}>
             Logout
           </Text>

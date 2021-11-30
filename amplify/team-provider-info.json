@@ -10,6 +10,11 @@
       "StackName": "amplify-tictactoe-staging-230136",
       "StackId": "arn:aws:cloudformation:us-east-1:873681387568:stack/amplify-tictactoe-staging-230136/cefa1320-4f0c-11ec-8b41-0ac863bb4f65",
       "AmplifyAppId": "d3ts7lty2wmee1"
+    },
+    "categories": {
+      "auth": {
+        "TicTacToe": {}
+      }
     }
   }
 }
