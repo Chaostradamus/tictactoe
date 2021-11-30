@@ -16,23 +16,33 @@ import styles from "./App.style";
 
 import { Game } from "./src/models";
 
-Amplify.configure(config);
+Amplify.configure({
+  ...config,
+  Analytics: {
+    disabled: true,
+  },
+});
 
 function App() {
   const [map, setMap] = useState(emptyMap);
-  const [currentTurn, setCurrentTurn] = useState("x");
+  const [ourPlayerType, setOurPlayerType] = useState(null);
+  const [currentTurn, setCurrentTurn] = useState("X");
 
   const [gameMode, setGameMode] = useState("BOT_MEDIUM"); // LOCAL, BOT_EASY, BOT_MEDIUM;
   const [game, setGame] = useState(null);
+  const [userData, setUserData] = useState(null);
 
   useEffect(() => {
+    resetGame();
     if (gameMode === "ONLINE") {
       findOrCreateOnlineGame();
+    } else {
+      deleteTemporaryGame();
     }
   }, [gameMode]);
 
   useEffect(() => {
-    if (currentTurn === "o" && gameMode !== "LOCAL") {
+    if (currentTurn === "O" && ["BOT_EASY", "BOT_MEDIUM"].includes(gameMode)) {
       const chosenOption = botTurn(map, gameMode);
       if (chosenOption) {
         onPress(chosenOption.row, chosenOption.col);
@@ -41,30 +51,69 @@ function App() {
   }, [currentTurn, gameMode]);
 
   useEffect(() => {
+    if (!game) {
+      return;
+    }
+    DataStore.save(
+      Game.copyOf(game, (g) => {
+        g.currentPlayer = currentTurn;
+      })
+    );
+  }, [currentTurn]);
+
+  useEffect(() => {
     const winner = getWinner(map);
     if (winner) {
       gameWon(winner);
     } else {
       checkTieState();
     }
+    // update game map
+    if (game) {
+      DataStore.save(
+        Game.copyOf(game, (g) => {
+          g.map = JSON.stringify(map);
+        })
+      );
+    }
   }, [map]);
+
+  useEffect(() => {
+    Auth.currentAuthenticatedUser().then(setUserData);
+  }, []);
 
   const findOrCreateOnlineGame = async () => {
     const games = await getAvailableGames();
     console.log(games);
-    // create new
-    await createNewGame();
+
+    if (games.length > 0) {
+      joinGame(games[0]);
+    } else {
+      await createNewGame();
+    }
+  };
+
+  const joinGame = async (game) => {
+    const updatedGame = await DataStore.save(
+      Game.copyOf(game, (updatedGame) => {
+        updatedGame.playerO = userData.attributes.sub;
+      })
+    );
+    setGame(updatedGame);
+    setOurPlayerType("O");
   };
 
   const getAvailableGames = async () => {
-    const games = await DataStore.query(Game);
+    const games = await DataStore.query(Game, (g) => g.playerO("eq", null));
     return games;
   };
 
   const createNewGame = async () => {
-    const userData = await Auth.currentAuthenticatedUser();
-
-    const emptyStringMap = JSON.stringify(emptyMap);
+    const emptyStringMap = JSON.stringify([
+      ["", "", ""], // 1st row
+      ["", "", ""], // 2nd row
+      ["", "", ""], // 3rd row
+    ]);
 
     const newGame = new Game({
       playerX: userData.attributes.sub,
@@ -73,12 +122,26 @@ function App() {
       pointsX: 0,
       pointsO: 0,
     });
-    console.log(newGame);
+
     const createdGame = await DataStore.save(newGame);
     setGame(createdGame);
+    setOurPlayerType("X");
+  };
+
+  const deleteTemporaryGame = async () => {
+    if (!game || game.playerO) {
+      setGame(null);
+      return;
+    }
+    await DataStore.delete(Game, game.id);
+    setGame(null);
   };
 
   const onPress = (rowIndex, columnIndex) => {
+    if (gameMode === "ONLINE" && game?.currentPlayer !== ourPlayerType) {
+      Alert.alert("Not your turn homie");
+      return;
+    }
     if (map[rowIndex][columnIndex] !== "") {
       Alert.alert("Position already occupied");
       return;
@@ -90,7 +153,7 @@ function App() {
       return updatedMap;
     });
 
-    setCurrentTurn(currentTurn === "x" ? "o" : "x");
+    setCurrentTurn(currentTurn === "X" ? "O" : "X");
   };
 
   const onLogout = async () => {
@@ -124,7 +187,7 @@ function App() {
       ["", "", ""], // 2nd row
       ["", "", ""], // 3rd row
     ]);
-    setCurrentTurn("x");
+    setCurrentTurn("X");
   };
 
   return (
