@@ -39,6 +39,10 @@ function App() {
     } else {
       deleteTemporaryGame();
     }
+    setCurrentTurn("X");
+    if (gameMode !== "ONLINE") {
+      setOurPlayerType("X");
+    }
   }, [gameMode]);
 
   useEffect(() => {
@@ -57,9 +61,10 @@ function App() {
     DataStore.save(
       Game.copyOf(game, (g) => {
         g.currentPlayer = currentTurn;
+        g.map = JSON.stringify(map);
       })
     );
-  }, [currentTurn]);
+  }, [currentTurn, game]);
 
   useEffect(() => {
     const winner = getWinner(map);
@@ -68,19 +73,26 @@ function App() {
     } else {
       checkTieState();
     }
-    // update game map
-    if (game) {
-      DataStore.save(
-        Game.copyOf(game, (g) => {
-          g.map = JSON.stringify(map);
-        })
-      );
-    }
   }, [map]);
 
   useEffect(() => {
     Auth.currentAuthenticatedUser().then(setUserData);
   }, []);
+
+  useEffect(() => {
+    if (!game) {
+    }
+    //subscribe to updates
+    const subscription = DataStore.observe(Game, game.id).subscribe((msg) => {
+      console.log(msg.model, msg.opType, msg.element);
+      if (msg.opType === "UPDATE") {
+        setGame(msg.element);
+        setMap(JSON.parse(msg.element.map));
+        setCurrentTurn(msg.element.currentPlayer);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [game]);
 
   const findOrCreateOnlineGame = async () => {
     const games = await getAvailableGames();
@@ -100,6 +112,7 @@ function App() {
       })
     );
     setGame(updatedGame);
+    setCurrentTurn(updatedGame.currentPlayer);
     setOurPlayerType("O");
   };
 
@@ -138,7 +151,7 @@ function App() {
   };
 
   const onPress = (rowIndex, columnIndex) => {
-    if (gameMode === "ONLINE" && game?.currentPlayer !== ourPlayerType) {
+    if (gameMode === "ONLINE" && currentTurn !== ourPlayerType) {
       Alert.alert("Not your turn homie");
       return;
     }
