@@ -31,6 +31,7 @@ function App() {
   const [gameMode, setGameMode] = useState("BOT_MEDIUM"); // LOCAL, BOT_EASY, BOT_MEDIUM;
   const [game, setGame] = useState(null);
   const [userData, setUserData] = useState(null);
+  const [gameFinished, setGameFinished] = useState(false);
 
   useEffect(() => {
     resetGame();
@@ -55,25 +56,30 @@ function App() {
   }, [currentTurn, gameMode]);
 
   useEffect(() => {
-    if (!game) {
-      return;
-    }
-    DataStore.save(
-      Game.copyOf(game, (g) => {
-        g.currentPlayer = currentTurn;
-        g.map = JSON.stringify(map);
-      })
-    );
-  }, [currentTurn, game]);
+    updateGame();
+  }, [currentTurn]);
+
+
+
+
 
   useEffect(() => {
+    if (gameFinished) {
+      return;
+    }
     const winner = getWinner(map);
     if (winner) {
       gameWon(winner);
+      setGameFinished(true)
     } else {
       checkTieState();
+      
     }
+    
   }, [map]);
+
+
+
 
   useEffect(() => {
     Auth.currentAuthenticatedUser().then(setUserData);
@@ -81,22 +87,28 @@ function App() {
 
   useEffect(() => {
     if (!game) {
+      return;
     }
     //subscribe to updates
     const subscription = DataStore.observe(Game, game.id).subscribe((msg) => {
       console.log(msg.model, msg.opType, msg.element);
+      const newGame = msg.element;
       if (msg.opType === "UPDATE") {
-        setGame(msg.element);
-        setMap(JSON.parse(msg.element.map));
-        setCurrentTurn(msg.element.currentPlayer);
+        // setGame((g) => ({ ...g, ...newGame }));
+        setGame(newGame);
+        if (newGame.map) {
+          setMap(JSON.parse(msg.element.map));
+        }
+        if (newGame.currentPlayer) {
+          setCurrentTurn(msg.element.currentPlayer);
+        }
       }
     });
     return () => subscription.unsubscribe();
-  }, [game]);
+  }, [game?.id]);
 
   const findOrCreateOnlineGame = async () => {
     const games = await getAvailableGames();
-    console.log(games);
 
     if (games.length > 0) {
       joinGame(games[0]);
@@ -112,12 +124,11 @@ function App() {
       })
     );
     setGame(updatedGame);
-    setCurrentTurn(updatedGame.currentPlayer);
     setOurPlayerType("O");
   };
 
   const getAvailableGames = async () => {
-    const games = await DataStore.query(Game, (g) => g.playerO("eq", null));
+    const games = await DataStore.query(Game, (g) => g.playerO("eq", ""));
     return games;
   };
 
@@ -130,6 +141,7 @@ function App() {
 
     const newGame = new Game({
       playerX: userData.attributes.sub,
+      playerO: "",
       map: emptyStringMap,
       currentPlayer: "X",
       pointsX: 0,
@@ -139,6 +151,18 @@ function App() {
     const createdGame = await DataStore.save(newGame);
     setGame(createdGame);
     setOurPlayerType("X");
+  };
+
+  const updateGame = () => {
+    if (!game) {
+      return;
+    }
+    DataStore.save(
+      Game.copyOf(game, (g) => {
+        g.currentPlayer = currentTurn;
+        g.map = JSON.stringify(map);
+      })
+    );
   };
 
   const deleteTemporaryGame = async () => {
@@ -182,6 +206,7 @@ function App() {
           onPress: resetGame,
         },
       ]);
+      gameFinished(true);
     }
   };
 
@@ -201,6 +226,7 @@ function App() {
       ["", "", ""], // 3rd row
     ]);
     setCurrentTurn("X");
+    setGameFinished(false);
   };
 
   return (
